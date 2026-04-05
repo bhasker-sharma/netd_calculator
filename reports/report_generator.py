@@ -21,15 +21,13 @@ from reportlab.platypus import (
 from core.netd_calculator import NETDResult
 
 # ── Colours ──────────────────────────────────────────────────────────────────
-NAVY       = colors.HexColor("#1A3A6E")
-LIGHT_BLUE = colors.HexColor("#E8EDF5")
-DARK_GRAY  = colors.HexColor("#333355")
-MID_GRAY   = colors.HexColor("#888899")
-WHITE      = colors.white
-BLACK      = colors.black
+NAVY      = colors.HexColor("#1A3A6E")
+DARK_GRAY = colors.HexColor("#333355")
+MID_GRAY  = colors.HexColor("#888899")
+BLACK     = colors.black
 
 # ── Asset path ────────────────────────────────────────────────────────────────
-_ASSETS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
+_ASSETS   = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
 LOGO_PATH = os.path.join(_ASSETS, "logo.png")
 
 # ── Page dimensions ───────────────────────────────────────────────────────────
@@ -59,7 +57,7 @@ class ReportGenerator:
             rightMargin=20 * mm,
             leftMargin=20 * mm,
             topMargin=15 * mm,
-            bottomMargin=28 * mm,
+            bottomMargin=42 * mm,          # extra space for verified-by drawn on canvas
             title="NETD Analysis Report — TIPL",
             author="TIPL",
         )
@@ -70,17 +68,37 @@ class ReportGenerator:
 
     def _draw_footer(self, canvas, doc):
         canvas.saveState()
-        y_line = 20 * mm
+
+        # ── Verified by — pinned above the divider line ───────────────────────
+        verified_by = self.metadata.get("verified_by", "N/A")
+
+        canvas.setFont("Helvetica-Bold", 9)
+        canvas.setFillColor(DARK_GRAY)
+        canvas.drawString(20 * mm, 37 * mm, "Verified By:")
+        canvas.setFont("Helvetica", 9)
+        canvas.setFillColor(BLACK)
+        canvas.drawString(52 * mm, 37 * mm, verified_by)
+
+        canvas.setFont("Helvetica-Bold", 9)
+        canvas.setFillColor(DARK_GRAY)
+        canvas.drawString(20 * mm, 30 * mm, "Signature:")
+        canvas.setFont("Helvetica", 9)
+        canvas.setFillColor(MID_GRAY)
+        canvas.drawString(52 * mm, 30 * mm, "_" * 38)
+
+        # ── Divider ───────────────────────────────────────────────────────────
         canvas.setStrokeColor(NAVY)
         canvas.setLineWidth(0.6)
-        canvas.line(20 * mm, y_line, PAGE_W - 20 * mm, y_line)
+        canvas.line(20 * mm, 24 * mm, PAGE_W - 20 * mm, 24 * mm)
 
+        # ── Footer text ───────────────────────────────────────────────────────
         canvas.setFont("Helvetica", 7.5)
         canvas.setFillColor(MID_GRAY)
         ts = datetime.now().strftime("%d-%m-%Y  %H:%M:%S")
-        canvas.drawString(20 * mm, 13 * mm, f"Generated: {ts}")
-        canvas.drawCentredString(PAGE_W / 2, 13 * mm, "TIPL — Thermal Camera NETD Analysis Report")
-        canvas.drawRightString(PAGE_W - 20 * mm, 13 * mm, f"Page {doc.page}")
+        canvas.drawString(20 * mm, 17 * mm, f"Generated: {ts}")
+        canvas.drawCentredString(PAGE_W / 2, 17 * mm, "TIPL — Thermal Camera NETD Analysis Report")
+        canvas.drawRightString(PAGE_W - 20 * mm, 17 * mm, f"Page {doc.page}")
+
         canvas.restoreState()
 
     # ── Story builder ─────────────────────────────────────────────────────────
@@ -89,26 +107,25 @@ class ReportGenerator:
         story = []
 
         story += self._header_block()
-        story.append(HRFlowable(width="100%", thickness=1.5, color=NAVY, spaceAfter=10))
+        story.append(HRFlowable(width="100%", thickness=1.2, color=NAVY, spaceAfter=8))
         story += self._title_block()
-        story.append(Spacer(1, 10))
-        story.append(self._netd_result_box())
-        story.append(Spacer(1, 14))
+        story.append(Spacer(1, 8))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=MID_GRAY, spaceAfter=8))
+        story += self._netd_result_block()
+        story.append(HRFlowable(width="100%", thickness=0.5, color=MID_GRAY, spaceBefore=8, spaceAfter=8))
+        story += self._section_label("Test Parameters")
         story.append(self._metadata_table())
 
         if self.image_path and os.path.exists(self.image_path):
-            story.append(Spacer(1, 14))
+            story.append(Spacer(1, 10))
             story.append(self._thermal_image_block())
-
-        story.append(Spacer(1, 14))
-        story.append(self._verified_by_block())
 
         return story
 
     # ── Sections ──────────────────────────────────────────────────────────────
 
     def _header_block(self):
-        """Logo left, company right."""
+        """Logo left, company name right — invisible layout table."""
         left_cell = ""
         if os.path.exists(LOGO_PATH):
             left_cell = Image(LOGO_PATH, width=38 * mm, height=15 * mm, kind="proportional")
@@ -126,12 +143,9 @@ class ReportGenerator:
             Paragraph("Thermal Imaging &amp; Precision Labs", tagline_style),
         ]
 
-        header_data = [[left_cell, right_cell]]
-        t = Table(header_data, colWidths=[CONTENT_W * 0.45, CONTENT_W * 0.55])
+        t = Table([[left_cell, right_cell]], colWidths=[CONTENT_W * 0.45, CONTENT_W * 0.55])
         t.setStyle(TableStyle([
-            ("VALIGN",  (0, 0), (-1, -1), "MIDDLE"),
-            ("ALIGN",   (0, 0), (0, 0),   "LEFT"),
-            ("ALIGN",   (1, 0), (1, 0),   "RIGHT"),
+            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
             ("TOPPADDING",    (0, 0), (-1, -1), 4),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
         ]))
@@ -140,50 +154,44 @@ class ReportGenerator:
     def _title_block(self):
         title_style = ParagraphStyle(
             "RTitle", fontSize=17, textColor=NAVY,
-            fontName="Helvetica-Bold", alignment=TA_CENTER, spaceAfter=3,
+            fontName="Helvetica-Bold", alignment=TA_CENTER,
+            spaceAfter=8,
         )
         sub_style = ParagraphStyle(
             "RSub", fontSize=10, textColor=MID_GRAY,
             fontName="Helvetica", alignment=TA_CENTER,
+            spaceBefore=0,
         )
         return [
             Paragraph("NETD Analysis Report", title_style),
-            Paragraph("Thermal Camera — Noise Equivalent Temperature Difference", sub_style),
+            Paragraph("Thermal Camera \u2014 Noise Equivalent Temperature Difference", sub_style),
         ]
 
-    def _netd_result_box(self):
-        label_style = ParagraphStyle(
-            "NL", fontSize=10, textColor=colors.HexColor("#B8C8E8"),
-            fontName="Helvetica", alignment=TA_CENTER,
+    def _netd_result_block(self):
+        # Everything on one line: label — value unit
+        style = ParagraphStyle(
+            "NResult",
+            fontName="Helvetica",
+            fontSize=11,
+            textColor=MID_GRAY,
+            alignment=TA_CENTER,
+            leading=30,        # tall enough for the 22pt bold value
         )
-        value_style = ParagraphStyle(
-            "NV", fontSize=34, textColor=WHITE,
-            fontName="Helvetica-Bold", alignment=TA_CENTER,
+        markup = (
+            '<font name="Helvetica" size="11" color="#888899">NETD Result &#8212; </font>'
+            f'<font name="Helvetica-Bold" size="22" color="#1A3A6E">{self.result.netd_mk}</font>'
+            '<font name="Helvetica" size="12" color="#888899">  mK  (Millikelvin)</font>'
         )
-        unit_style = ParagraphStyle(
-            "NU", fontSize=11, textColor=colors.HexColor("#B8C8E8"),
-            fontName="Helvetica", alignment=TA_CENTER,
-        )
+        return [Paragraph(markup, style)]
 
-        data = [
-            [Paragraph("NETD Result", label_style)],
-            [Paragraph(f"{self.result.netd_mk}", value_style)],
-            [Paragraph("mK  (Millikelvin)", unit_style)],
-        ]
-        t = Table(data, colWidths=[CONTENT_W])
-        t.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1, -1), NAVY),
-            ("TOPPADDING",    (0, 0), (-1, -1), 8),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 16),
-            ("RIGHTPADDING",  (0, 0), (-1, -1), 16),
-        ]))
-        return t
+    def _section_label(self, text: str):
+        style = ParagraphStyle(
+            "SecLabel", fontSize=9, textColor=MID_GRAY,
+            fontName="Helvetica-Bold", spaceAfter=4,
+        )
+        return [Paragraph(text.upper(), style)]
 
     def _metadata_table(self):
-        header_style = ParagraphStyle(
-            "TH", fontSize=9, textColor=WHITE, fontName="Helvetica-Bold",
-        )
         key_style = ParagraphStyle(
             "TK", fontSize=9, textColor=DARK_GRAY, fontName="Helvetica-Bold",
         )
@@ -192,79 +200,37 @@ class ReportGenerator:
         )
 
         rows = [
-            ("Model Name",          self.metadata.get("model_name", "N/A")),
-            ("Serial Number",       self.metadata.get("serial_number", "N/A")),
-            ("Emissivity",          str(self.metadata.get("emissivity", "N/A"))),
-            ("Date & Time",         self.metadata.get("datetime", "N/A")),
-            ("ROI Size (pixels)",   self.result.roi_size),
-            ("Total Samples (N)",   str(self.result.N)),
-            ("Mean Temperature",    f"{self.result.mean:.4f} °C"),
-            ("Std Deviation (σ)",   f"{self.result.sigma:.6f} °C"),
+            ("Model Name",        self.metadata.get("model_name", "N/A")),
+            ("Serial Number",     self.metadata.get("serial_number", "N/A")),
+            ("Emissivity",        str(self.metadata.get("emissivity", "N/A"))),
+            ("Date & Time",       self.metadata.get("datetime", "N/A")),
+            ("ROI Size (pixels)", self.result.roi_size),
+            ("Total Samples (N)", str(self.result.N)),
+            ("Mean Temperature",  f"{self.result.mean:.4f} \u00b0C"),
+            ("Std Deviation (\u03c3)", f"{self.result.sigma:.6f} \u00b0C"),
         ]
 
-        data = [
-            [Paragraph("Parameter", header_style), Paragraph("Value", header_style)],
-        ] + [
-            [Paragraph(k, key_style), Paragraph(v, val_style)] for k, v in rows
-        ]
-
-        col_w = [CONTENT_W * 0.38, CONTENT_W * 0.62]
-        t = Table(data, colWidths=col_w)
-
-        style = [
-            ("BACKGROUND",    (0, 0), (-1, 0),  NAVY),
-            ("GRID",          (0, 0), (-1, -1), 0.5, colors.HexColor("#C8C8D4")),
-            ("TOPPADDING",    (0, 0), (-1, -1), 6),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 10),
-            ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
+        data = [[Paragraph(k, key_style), Paragraph(v, val_style)] for k, v in rows]
+        t = Table(data, colWidths=[CONTENT_W * 0.38, CONTENT_W * 0.62])
+        t.setStyle(TableStyle([
+            ("TOPPADDING",    (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 2),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 2),
             ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-        ]
-        # Alternating row colours for data rows
-        for i in range(1, len(data)):
-            bg = WHITE if i % 2 == 1 else LIGHT_BLUE
-            style.append(("BACKGROUND", (0, i), (-1, i), bg))
-
-        t.setStyle(TableStyle(style))
+            # thin bottom border on each row as a light separator
+            ("LINEBELOW", (0, 0), (-1, -2), 0.3, colors.HexColor("#DDDDDD")),
+        ]))
         return t
 
     def _thermal_image_block(self):
         heading_style = ParagraphStyle(
-            "ImgH", fontSize=11, textColor=NAVY,
-            fontName="Helvetica-Bold", spaceAfter=6,
+            "ImgH", fontSize=9, textColor=MID_GRAY,
+            fontName="Helvetica-Bold", spaceAfter=4,
         )
-        img = Image(self.image_path, width=110 * mm, height=80 * mm, kind="proportional")
+        img = Image(self.image_path, width=90 * mm, height=65 * mm, kind="proportional")
         img.hAlign = "CENTER"
         return KeepTogether([
-            Paragraph("Thermal Reference Image", heading_style),
+            Paragraph("THERMAL REFERENCE IMAGE", heading_style),
             img,
         ])
-
-    def _verified_by_block(self):
-        key_style = ParagraphStyle(
-            "VK", fontSize=9, textColor=DARK_GRAY, fontName="Helvetica-Bold",
-        )
-        val_style = ParagraphStyle(
-            "VV", fontSize=9, textColor=BLACK, fontName="Helvetica",
-        )
-        line_style = ParagraphStyle(
-            "VL", fontSize=9, textColor=MID_GRAY, fontName="Helvetica",
-        )
-
-        verified_by = self.metadata.get("verified_by", "N/A")
-        data = [
-            [Paragraph("Verified By", key_style),  Paragraph(verified_by, val_style)],
-            [Paragraph("Signature",   key_style),  Paragraph("_" * 35, line_style)],
-        ]
-        col_w = [CONTENT_W * 0.28, CONTENT_W * 0.72]
-        t = Table(data, colWidths=col_w)
-        t.setStyle(TableStyle([
-            ("BACKGROUND",    (0, 0), (-1, -1), LIGHT_BLUE),
-            ("GRID",          (0, 0), (-1, -1), 0.5, colors.HexColor("#C8C8D4")),
-            ("TOPPADDING",    (0, 0), (-1, -1), 8),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 10),
-            ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
-            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-        ]))
-        return t
