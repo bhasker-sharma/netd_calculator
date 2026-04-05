@@ -21,8 +21,11 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
+from core.logger import AppLogger
 from core.netd_calculator import NETDCalculator, NETDResult
 from reports.report_generator import ReportGenerator
+
+log = AppLogger.get(__name__)
 
 _ASSETS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets")
 
@@ -266,6 +269,7 @@ class MainWindow(QMainWindow):
         if path:
             self._excel_path = path
             self.excel_edit.setText(path)
+            log.info("Excel file selected: %s", path)
 
     def _browse_image(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -275,21 +279,26 @@ class MainWindow(QMainWindow):
         if path:
             self._image_path = path
             self.image_edit.setText(path)
+            log.info("Thermal image selected: %s", path)
 
     def _run_calculation(self):
         if not self._excel_path:
+            log.warning("Calculate clicked with no Excel file selected")
             QMessageBox.warning(self, "Missing Input",
                                 "Please select a temperature matrix Excel file.")
             return
 
+        log.info("Calculation requested for: %s", self._excel_path)
         try:
             calc = NETDCalculator(self._excel_path)
             calc.load_excel()
             self._result = calc.calculate()
             self._display_result(self._result)
             self.report_btn.setEnabled(True)
+            log.info("Calculation completed — NETD=%.1f mK", self._result.netd_mk)
 
         except Exception as exc:
+            log.exception("Calculation failed")
             QMessageBox.critical(self, "Calculation Error", str(exc))
 
     def _display_result(self, result: NETDResult):
@@ -319,6 +328,7 @@ class MainWindow(QMainWindow):
             "verified_by":   self.verified_edit.text().strip() or "N/A",
         }
 
+        log.info("Report generation requested — output: %s", path)
         try:
             gen = ReportGenerator(
                 self._result,
@@ -326,11 +336,13 @@ class MainWindow(QMainWindow):
                 self._image_path or None,
             )
             gen.generate(path)
+            log.info("Report saved successfully: %s", path)
             QMessageBox.information(
                 self, "Report Saved",
                 f"PDF report saved successfully:\n\n{path}",
             )
         except Exception as exc:
+            log.exception("Report generation failed")
             QMessageBox.critical(self, "Report Error", str(exc))
 
     # ── Stylesheet ────────────────────────────────────────────────────────────

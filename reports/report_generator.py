@@ -18,7 +18,10 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from core.logger import AppLogger
 from core.netd_calculator import NETDResult
+
+log = AppLogger.get(__name__)
 
 # ── Colours ──────────────────────────────────────────────────────────────────
 NAVY      = colors.HexColor("#1A3A6E")
@@ -51,6 +54,7 @@ class ReportGenerator:
     # ── Public ────────────────────────────────────────────────────────────────
 
     def generate(self, output_path: str) -> None:
+        log.info("Building PDF report: %s", output_path)
         doc = SimpleDocTemplate(
             output_path,
             pagesize=A4,
@@ -63,6 +67,7 @@ class ReportGenerator:
         )
         story = self._build_story()
         doc.build(story, onFirstPage=self._draw_footer, onLaterPages=self._draw_footer)
+        log.info("PDF report written successfully")
 
     # ── Footer (canvas-level) ─────────────────────────────────────────────────
 
