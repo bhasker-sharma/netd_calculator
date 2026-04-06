@@ -3,8 +3,17 @@ import os
 import sys
 from logging.handlers import RotatingFileHandler
 
-# logs/ folder sits at project root (one level above core/)
-_LOG_DIR  = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
+# When running as a PyInstaller frozen bundle, write logs to %LOCALAPPDATA%
+# so the app doesn't try to write inside Program Files (requires admin).
+if getattr(sys, "frozen", False):
+    _base = os.path.join(
+        os.environ.get("LOCALAPPDATA", os.path.expanduser("~")),
+        "TIPL", "NETD Calculator",
+    )
+else:
+    _base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+_LOG_DIR  = os.path.join(_base, "logs")
 _LOG_FILE = os.path.join(_LOG_DIR, "netd_calculator.log")
 
 _FILE_FMT    = "%(asctime)s  %(levelname)-8s  %(name)s — %(message)s"
