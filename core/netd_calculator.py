@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 import openpyxl
+import xlrd
 
 from core.logger import AppLogger
 
@@ -53,21 +54,38 @@ class FrameCalculator:
 
     def load(self) -> None:
         log.info("Loading frame: %s", self._path)
-        wb = openpyxl.load_workbook(self._path, data_only=True)
-        ws = wb.active
+        ext = os.path.splitext(self._path)[1].lower()
 
         self._grid = []
-        for row in ws.iter_rows(values_only=True):
-            parsed_row: List[Optional[float]] = []
-            for cell in row:
-                if cell is None:
-                    parsed_row.append(None)
-                else:
-                    try:
-                        parsed_row.append(float(cell))
-                    except (TypeError, ValueError):
+        if ext == ".xls":
+            wb = xlrd.open_workbook(self._path)
+            ws = wb.sheet_by_index(0)
+            for row_idx in range(ws.nrows):
+                parsed_row: List[Optional[float]] = []
+                for col_idx in range(ws.ncols):
+                    cell = ws.cell(row_idx, col_idx)
+                    if cell.ctype in (xlrd.XL_CELL_EMPTY, xlrd.XL_CELL_BLANK):
                         parsed_row.append(None)
-            self._grid.append(parsed_row)
+                    else:
+                        try:
+                            parsed_row.append(float(cell.value))
+                        except (TypeError, ValueError):
+                            parsed_row.append(None)
+                self._grid.append(parsed_row)
+        else:
+            wb = openpyxl.load_workbook(self._path, data_only=True)
+            ws = wb.active
+            for row in ws.iter_rows(values_only=True):
+                parsed_row: List[Optional[float]] = []
+                for cell in row:
+                    if cell is None:
+                        parsed_row.append(None)
+                    else:
+                        try:
+                            parsed_row.append(float(cell))
+                        except (TypeError, ValueError):
+                            parsed_row.append(None)
+                self._grid.append(parsed_row)
 
         flat = self._flat_valid()
         if not flat:
