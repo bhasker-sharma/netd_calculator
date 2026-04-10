@@ -247,7 +247,7 @@ class MainWindow(QMainWindow):
         # Per-frame results table
         self.frame_table = QTableWidget(0, 4)
         self.frame_table.setHorizontalHeaderLabels([
-            "Sr. No.", "File Name", "T\u0304 (\u00b0C)", "Spatial Noise (mK)",
+            "Sr. No.", "File Name", "Avg. Temp (\u00b0C)", "NETD (mK)",
         ])
         self.frame_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.frame_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
@@ -259,43 +259,27 @@ class MainWindow(QMainWindow):
         self.frame_table.setMinimumHeight(120)
         outer.addWidget(self.frame_table, stretch=1)
 
-        # Summary section: mean SN (left) | divider | NETD big display (right)
+        # Summary section: NETD big display (centred)
         summary = QHBoxLayout()
         summary.setSpacing(20)
 
-        left = QVBoxLayout()
-        left.setSpacing(8)
-        mean_row = QHBoxLayout()
-        mean_row.addWidget(QLabel("Mean Spatial Noise:"))
-        self.mean_sn_lbl = QLabel("\u2014")
-        self.mean_sn_lbl.setObjectName("statVal")
-        mean_row.addWidget(self.mean_sn_lbl)
-        mean_row.addStretch()
-        left.addStretch()
-        left.addLayout(mean_row)
-        left.addStretch()
-
-        divider = QFrame()
-        divider.setFrameShape(QFrame.VLine)
-        divider.setFrameShadow(QFrame.Sunken)
-        divider.setObjectName("divider")
-
-        right = QVBoxLayout()
-        right.setSpacing(4)
         self.netd_value_lbl = QLabel("\u2014")
         self.netd_value_lbl.setObjectName("netdValue")
         self.netd_value_lbl.setAlignment(Qt.AlignCenter)
         self.netd_unit_lbl = QLabel("mK  (NETD)")
         self.netd_unit_lbl.setObjectName("netdUnit")
         self.netd_unit_lbl.setAlignment(Qt.AlignCenter)
-        right.addStretch()
-        right.addWidget(self.netd_value_lbl)
-        right.addWidget(self.netd_unit_lbl)
-        right.addStretch()
 
-        summary.addLayout(left, 3)
-        summary.addWidget(divider)
-        summary.addLayout(right, 2)
+        netd_col = QVBoxLayout()
+        netd_col.setSpacing(4)
+        netd_col.addStretch()
+        netd_col.addWidget(self.netd_value_lbl)
+        netd_col.addWidget(self.netd_unit_lbl)
+        netd_col.addStretch()
+
+        summary.addStretch()
+        summary.addLayout(netd_col)
+        summary.addStretch()
 
         outer.addLayout(summary)
         return self.results_group
@@ -364,9 +348,8 @@ class MainWindow(QMainWindow):
             self.frame_table.setItem(row, 0, self._centered_item(str(i + 1)))
             self.frame_table.setItem(row, 1, QTableWidgetItem(frame.filename))
             self.frame_table.setItem(row, 2, self._centered_item(f"{frame.tbar:.4f}"))
-            self.frame_table.setItem(row, 3, self._centered_item(f"{frame.spatial_noise_mk:.1f}"))
+            self.frame_table.setItem(row, 3, self._centered_item(f"{frame.netd_mk:.1f}"))
 
-        self.mean_sn_lbl.setText(f"{result.mean_spatial_noise:.1f} mK")
         self.netd_value_lbl.setText(f"{result.netd_mk:.1f}")
 
     @staticmethod

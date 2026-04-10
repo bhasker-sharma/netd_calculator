@@ -79,15 +79,32 @@ class ReportGenerator:
         canvas.setLineWidth(0.6)
         canvas.line(20 * mm, 24 * mm, PAGE_W - 20 * mm, 24 * mm)
 
+        # Standards alignment note — small text between rule and footer line
+        canvas.setFont("Helvetica-Bold", 5.8)
+        canvas.setFillColor(MID_GRAY)
+        canvas.drawCentredString(
+            PAGE_W / 2, 22 * mm,
+            "Standards Alignment: The methodology is aligned with internationally recognized standards and best practices.",
+        )
+        canvas.setFont("Helvetica", 5.8)
+        canvas.drawCentredString(
+            PAGE_W / 2, 19.8 * mm,
+            "Primary Standards (Infrared Imaging Performance): ASTM E1543-14 (2022)  \u00b7  VDI/VDE 5585 Part 1 (2018)  \u00b7  ISO 18554:2017 (general guidance reference)",
+        )
+        canvas.drawCentredString(
+            PAGE_W / 2, 17.8 * mm,
+            "Supporting Standards (Noise Characterization): ISO 15739  \u00b7  EMVA 1288    \u2502    Quality & Laboratory Compliance: ISO/IEC 17025:2017",
+        )
+
         canvas.setFont("Helvetica", 7.5)
         canvas.setFillColor(MID_GRAY)
         ts = datetime.now().strftime("%d-%m-%Y  %H:%M:%S")
-        canvas.drawString(20 * mm, 17 * mm, f"Generated: {ts}")
+        canvas.drawString(20 * mm, 14 * mm, f"Generated: {ts}")
         canvas.drawCentredString(
-            PAGE_W / 2, 17 * mm,
+            PAGE_W / 2, 14 * mm,
             "TIPL \u2014 Multi-Frame Thermal Sensitivity (NETD) Analysis Report",
         )
-        canvas.drawRightString(PAGE_W - 20 * mm, 17 * mm, f"Page {doc.page}")
+        canvas.drawRightString(PAGE_W - 20 * mm, 14 * mm, f"Page {doc.page}")
 
         canvas.restoreState()
 
@@ -103,8 +120,6 @@ class ReportGenerator:
                                 spaceBefore=6, spaceAfter=8))
         story += self._section_label("Test Parameters")
         story.append(self._parameters_table())
-        story.append(Spacer(1, 8))
-        story += self._standards_block()
         story.append(Spacer(1, 8))
         story.append(HRFlowable(width="100%", thickness=0.5, color=MID_GRAY, spaceAfter=8))
         story += self._section_label("Calculation — Frame Analysis")
@@ -225,7 +240,7 @@ class ReportGenerator:
             Paragraph("Sr. No.", hdr_style),
             Paragraph("File Name", hdr_style),
             Paragraph("Avg. Temp (\u00b0C)", hdr_style),
-            Paragraph("Spatial Noise (mK)", hdr_style),
+            Paragraph("NETD (mK)", hdr_style),
         ]
         data = [header_row]
 
@@ -234,7 +249,7 @@ class ReportGenerator:
                 Paragraph(str(i), num_style),
                 Paragraph(frame.filename, name_style),
                 Paragraph(f"{frame.tbar:.4f}", num_style),
-                Paragraph(f"{frame.spatial_noise_mk:.1f}", num_style),
+                Paragraph(f"{frame.netd_mk:.1f}", num_style),
             ])
 
         col_widths = [CONTENT_W * w for w in (0.08, 0.50, 0.21, 0.21)]
@@ -268,10 +283,6 @@ class ReportGenerator:
 
         data = [
             [
-                Paragraph("Mean Spatial Noise", key_style),
-                Paragraph(f"{self.result.mean_spatial_noise:.1f} mK", val_style),
-            ],
-            [
                 Paragraph("Thermal Sensitivity (NETD)", key_style),
                 Paragraph(f"{self.result.netd_mk:.1f} mK", netd_style),
             ],
@@ -286,7 +297,6 @@ class ReportGenerator:
             ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
             ("LINEABOVE",     (0, 0), (-1,  0), 0.8, NAVY),
             ("LINEBELOW",     (0, -1), (-1, -1), 0.8, NAVY),
-            ("LINEBELOW",     (0, 0), (-1, 0), 0.3, colors.HexColor("#CCCCCC")),
         ]))
         return [t]
 

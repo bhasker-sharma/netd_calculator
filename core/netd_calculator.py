@@ -18,6 +18,7 @@ class FrameResult:
     filename: str
     tbar: float              # selected window mean temperature (°C)
     spatial_noise_mk: float  # sigma of selected window × 1000 (mK)
+    netd_mk: float           # spatial_noise_mk / 1.88 (mK)
 
 
 @dataclass
@@ -92,15 +93,17 @@ class FrameCalculator:
         tbar = sum(window_data) / len(window_data)
         sigma = self._sigma(window_data, tbar)
         spatial_noise_mk = round(sigma * 1000, 1)
+        frame_netd_mk = round(spatial_noise_mk / 1.88, 1)
 
         filename = os.path.basename(self._path)
-        log.info("Frame %s → Tbar=%.4f°C  σ=%.6f  SN=%.1f mK",
-                 filename, tbar, sigma, spatial_noise_mk)
+        log.info("Frame %s → Tbar=%.4f°C  σ=%.6f  SN=%.1f mK  NETD=%.1f mK",
+                 filename, tbar, sigma, spatial_noise_mk, frame_netd_mk)
 
         return FrameResult(
             filename=filename,
             tbar=round(tbar, 4),
             spatial_noise_mk=spatial_noise_mk,
+            netd_mk=frame_netd_mk,
         )
 
     # ── Private helpers ───────────────────────────────────────────────────────
@@ -196,7 +199,7 @@ class MultiFrameCalculator:
             frames.append(calc.calculate())
 
         mean_sn = round(sum(f.spatial_noise_mk for f in frames) / len(frames), 1)
-        netd = round(mean_sn / 1.88, 1)
+        netd = round(sum(f.netd_mk for f in frames) / len(frames), 1)
 
         log.info("Aggregation done — Mean SN=%.1f mK  NETD=%.1f mK", mean_sn, netd)
 
